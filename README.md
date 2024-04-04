@@ -259,4 +259,169 @@ Output:
 	"reviews_per_month" : 1.15
 }
 ```
+This essentially does the same thing as the first query where you are displaying documents to the user, however, the way in which this is done (i.e. the format) is different. It is easier to understand this format. 
 
+3. For this query, I have to choose two hosts and show all the listings offered by both of the two hosts. I chose `host_id` 509154428 and 43436905. 
+Code:
+```
+db.listings.find(
+  { host_id: 509154428 },
+  {
+    _id: 0,
+    name: 1,
+    price: 1,
+    neighbourhood_cleansed: 1,
+    host_name: 1,
+    host_is_superhost: 1
+  }
+);
+
+db.listings.find(
+  { host_id: 43436905 }, 
+  {
+    _id: 0,
+    name: 1,
+    price: 1,
+    neighbourhood_cleansed: 1,
+    host_name: 1,
+    host_is_superhost: 1
+  }
+);
+
+```
+Output:
+```
+  {
+    name: 'Casa Vacanze La terrazza Sul Sole',
+    host_name: 'Antonio',
+    host_is_superhost: 't',
+    neighbourhood_cleansed: "San Carlo all'Arena",
+    price: '$139.00'
+  },
+  {
+    name: 'Camera moderna al centro Napoli',
+    host_name: 'Enrico',
+    host_is_superhost: 't',
+    neighbourhood_cleansed: 'Avvocata',
+    price: '$350.00'
+  },
+  {
+    name: 'Varriale House  con  Parking',
+    host_name: 'Enrico',
+    host_is_superhost: 't',
+    neighbourhood_cleansed: 'Avvocata',
+    price: '$105.00'
+  }
+```
+Here are the values of `name`, `price`, `neighbourhood_cleansed`, `host_name`, and `host_is_superhost` for each superhost. 
+
+
+4. For this query, I had to find all the unique `host_name` values.
+Code:
+```
+db.listings.distinct("host_name")
+```
+Output:
+```
+  'A Casa Di Ilaria',
+  'A Casa Di Ninetta',
+  'A Casa Ra Bona Crianza',
+```
+I have pasted in the first 3 unique `host_name` values. 
+
+5. For this query I had to find all the placed that have more than 2 `beds` in a neighborhood of my choice. For this I chose, Vicaria. For this query, I used `nighbourhood_cleansed` as this had the most information in relation to `neighbourhood` and `neighbourhood_group_cleansed`. I actually got rid of `neighbourhood_group_cleansed` when I was scrubbing the data, since there was no data in this column to begin with. 
+Code:
+```
+db.listings.aggregate([
+  {
+    $match: {
+      neighbourhood_cleansed: "Vicaria",
+      beds: { $gt: 2 },
+      review_scores_rating: { $ne: null }
+    }
+  },
+  {
+    $project: {
+      _id: 0,
+      name: 1,
+      beds: 1,
+      review_scores_rating: 1,
+      price: 1
+    }
+  },
+  {
+    $sort: { review_scores_rating: -1 }
+  }
+])
+```
+Output:
+```
+{
+    name: 'Napoli Centrale',
+    beds: 4,
+    price: '$74.00',
+    review_scores_rating: ''
+  },
+  {
+    name: 'Camera privata Corrado Lumacors',
+    beds: 3,
+    price: '$65.00',
+    review_scores_rating: ''
+  },
+  {
+    name: 'Stanza Matteo tripla Lumacors',
+    beds: 3,
+    price: '$70.00',
+    review_scores_rating: ''
+  }
+```
+Only the name, beds, price and review score rating (if they have one) has been shown in this. 
+
+6. I have to show the number of listings per host
+Code:
+```
+db.listings.aggregate([
+  {
+    $group: {
+      _id: "$host_id",
+      total_listings: { $sum: 1 }
+    }
+  }
+])
+```
+Output:
+```
+  { _id: 236973899, total_listings: 1 },
+  { _id: 460869837, total_listings: 1 },
+  { _id: 26154392, total_listings: 1 }
+```
+It seems that the hosts only have one listing. 
+
+7. FOr this query I had to find the average `review_scores_rating`
+Code:
+```
+db.listings.aggregate([
+  {
+    $match: {
+      review_scores_rating: { $gte: 4 } 
+    }
+  },
+  {
+    $group: {
+      _id: "$property_type", 
+      avg_rating: { $avg: "$review_scores_rating" } 
+    }
+  },
+  {
+    $sort: { avg_rating: -1 } 
+  }
+])
+
+```
+Output:
+```
+  { _id: 'Barn', avg_rating: 5 },
+  { _id: 'Private room in hostel', avg_rating: 4.99 },
+  { _id: 'Entire cottage', avg_rating: 4.970000000000001 }
+```
+Here are the average ratings for 3 different listings in descending order.
